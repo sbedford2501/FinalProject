@@ -191,7 +191,7 @@
          type:'line',borderColor:TEA,borderWidth:2,borderDash:[6,4],
          pointRadius:0,fill:false,tension:0}
       ]},
-      Object.assign({},BASE,{scales:SC,plugins:{tooltip:TIP,legend:{display:false}}}),
+      Object.assign({},BASE,{scales:SC,plugins:{tooltip:TIP,legend:{display:true,labels:{boxWidth:12,padding:16,filter:function(item){return item.text.indexOf('Average')!==-1;}}}}}),
       [{id:'adminShade',beforeDraw:function(ch){
         if(!showDem&&!showRep) return;
         var ctx=ch.ctx,x=ch.scales.x,y=ch.scales.y;
@@ -200,7 +200,10 @@
           if(adm.party==='R'&&!showRep) return;
           var si=refYrs.indexOf(adm.start); if(si<0) return;
           var ei=refYrs.indexOf(adm.end); if(ei<0) ei=refYrs.length-1;
-          var x1=x.getPixelForValue(refYrs[si]), x2=x.getPixelForValue(refYrs[Math.min(ei,refYrs.length-1)]);
+          ei=Math.min(ei,refYrs.length-1);
+          var x1=x.getPixelForTick(si), x2=x.getPixelForTick(ei);
+          var hw=x.width/(refYrs.length*2);
+          x1-=hw; x2+=hw;
           ctx.save();
           ctx.fillStyle=adm.party==='D'?'rgba(79,142,247,0.13)':'rgba(248,113,113,0.13)';
           ctx.fillRect(x1,y.top,x2-x1,y.bottom-y.top);
