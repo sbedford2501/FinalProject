@@ -178,43 +178,8 @@
   /* ── REFUGEES ─────────────────────────────────────────── */
   var showDem=false, showRep=false, refChart=null;
 
-  function buildRefugees() {
-    var refYrs = immigrationData.refugeeArrivals.map(function(d){return d.year;});
-    var refV   = immigrationData.refugeeArrivals.map(function(d){return d.total;});
-    var refAvg = Math.round(refV.reduce(function(a,b){return a+b;},0)/refV.length);
-
-    refChart = mk('refTimeline', 'bar',
-      {labels:refYrs, datasets:[
-        barDS('Refugee Arrivals',refV,AMB),
-        {label:'Average ('+fmt(refAvg)+')',
-         data:refYrs.map(function(){return refAvg;}),
-         type:'line',borderColor:TEA,borderWidth:2,borderDash:[6,4],
-         pointRadius:0,fill:false,tension:0}
-      ]},
-      Object.assign({},BASE,{scales:SC,plugins:{tooltip:TIP,legend:{display:true,labels:{boxWidth:12,padding:16,filter:function(item){return item.text.indexOf('Average')!==-1;}}}}}),
-      [{id:'adminShade',beforeDraw:function(ch){
-        if(!showDem&&!showRep) return;
-        var ctx=ch.ctx,x=ch.scales.x,y=ch.scales.y;
-        immigrationData.administrations.forEach(function(adm){
-          if(adm.party==='D'&&!showDem) return;
-          if(adm.party==='R'&&!showRep) return;
-          var si=refYrs.indexOf(adm.start); if(si<0) return;
-          var ei=refYrs.indexOf(adm.end); if(ei<0) ei=refYrs.length-1;
-          ei=Math.min(ei,refYrs.length-1);
-          var x1=x.getPixelForTick(si), x2=x.getPixelForTick(ei);
-          var hw=x.width/(refYrs.length*2);
-          x1-=hw; x2+=hw;
-          ctx.save();
-          ctx.fillStyle=adm.party==='D'?'rgba(79,142,247,0.13)':'rgba(248,113,113,0.13)';
-          ctx.fillRect(x1,y.top,x2-x1,y.bottom-y.top);
-          ctx.fillStyle=adm.party==='D'?'rgba(79,142,247,0.8)':'rgba(248,113,113,0.8)';
-          ctx.font='9px sans-serif'; ctx.textAlign='center';
-          ctx.fillText(adm.name,(x1+x2)/2,y.top+10);
-          ctx.restore();
-        });
-      }}]
-    );
-
+  /* attach toggle listeners immediately — refChart will exist by the time they're clicked */
+  document.addEventListener('DOMContentLoaded', function(){
     var td=document.getElementById('toggleDem');
     var tr=document.getElementById('toggleRep');
     if(td) td.addEventListener('click',function(){
@@ -225,6 +190,69 @@
       showRep=!showRep; this.classList.toggle('rep',showRep);
       if(refChart) refChart.update();
     });
+  });
+
+  function buildRefugees() {
+    var refYrs = immigrationData.refugeeArrivals.map(function(d){return d.year;});
+    var refV   = immigrationData.refugeeArrivals.map(function(d){return d.total;});
+    var refAvg = Math.round(refV.reduce(function(a,b){return a+b;},0)/refV.length);
+
+    refChart = mk('refTimeline', 'bar',
+      {labels:refYrs, datasets:[
+        barDS('Refugee Arrivals',refV,AMB),
+        {label:'--- Average ('+fmt(refAvg)+')',
+         data:refYrs.map(function(){return refAvg;}),
+         type:'line',borderColor:TEA,borderWidth:2,borderDash:[6,4],
+         pointRadius:0,fill:false,tension:0}
+      ]},
+      Object.assign({},BASE,{scales:SC,plugins:{
+        tooltip:TIP,
+        legend:{display:true,labels:{boxWidth:20,padding:16,
+          generateLabels:function(chart){
+            return [{
+              text:'Average ('+fmt(refAvg)+')',
+              strokeStyle:TEA, fillStyle:'transparent',
+              lineWidth:2, lineDash:[6,4], hidden:false, datasetIndex:1
+            }];
+          }
+        }}
+      }}),
+      [{id:'adminShade',beforeDraw:function(ch){
+        if(!showDem&&!showRep) return;
+        var ctx=ch.ctx,x=ch.scales.x,y=ch.scales.y;
+        immigrationData.administrations.forEach(function(adm){
+          if(adm.party==='D'&&!showDem) return;
+          if(adm.party==='R'&&!showRep) return;
+          var si=refYrs.indexOf(adm.start); if(si<0) return;
+          var ei=refYrs.indexOf(adm.end); if(ei<0) ei=refYrs.length-1;
+          ei=Math.min(ei,refYrs.length-1);
+          /* use getPixelForValue with the string label for category axis */
+          var x1=x.getPixelForValue(String(refYrs[si]));
+          var x2=x.getPixelForValue(String(refYrs[ei]));
+          var hw=(x.width/refYrs.length)*0.5;
+          x1-=hw; x2+=hw;
+          ctx.save();
+          ctx.fillStyle=adm.party==='D'?'rgba(79,142,247,0.15)':'rgba(248,113,113,0.15)';
+          ctx.fillRect(x1,y.top,x2-x1,y.bottom-y.top);
+          ctx.fillStyle=adm.party==='D'?'rgba(79,142,247,0.9)':'rgba(248,113,113,0.9)';
+          ctx.font='bold 9px sans-serif'; ctx.textAlign='center';
+          ctx.fillText(adm.name,(x1+x2)/2,y.top+12);
+          ctx.restore();
+        });
+      }}]
+    );
+
+    /* also wire up buttons here in case DOMContentLoaded already fired */
+    var td=document.getElementById('toggleDem');
+    var tr=document.getElementById('toggleRep');
+    if(td && !td._bound){ td._bound=true; td.addEventListener('click',function(){
+      showDem=!showDem; this.classList.toggle('dem',showDem);
+      if(refChart) refChart.update();
+    });}
+    if(tr && !tr._bound){ tr._bound=true; tr.addEventListener('click',function(){
+      showRep=!showRep; this.classList.toggle('rep',showRep);
+      if(refChart) refChart.update();
+    });}
 
     var rr = immigrationData.refugeeByRegion;
     mk('refRegion', 'bar',
